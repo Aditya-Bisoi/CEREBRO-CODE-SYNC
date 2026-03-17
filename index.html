@@ -9,6 +9,18 @@
   <title>CEREBRO'S RED CODE</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script>
+  // SECURITY PROTOCOL: Redirect unauthorized access
+  (function() {
+    const activeUser = sessionStorage.getItem('cerebro_callsign');
+    const activeToken = sessionStorage.getItem('cerebro_code');
+
+    if (!activeUser || !activeToken) {
+      // No session found - kick back to login portal
+      window.location.replace('login.html');
+    }
+  })();
+</script>
   <style>
     :root {
       --bg: #050000;
@@ -1090,7 +1102,7 @@
         <div style="display:flex;flex-direction:column;gap:12px">
           <div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Server URL</div>
-            <input class="retro-input" id="serverUrl" value="ws://localhost:3000">
+            <input class="retro-input" id="serverUrl" value="https://cerebro-code-sync.onrender.com">
           </div>
           <div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Room Code</div>
@@ -1464,7 +1476,7 @@
       // WEBSOCKET CONNECTION
       // =============================================
       function connectToRoom() {
-        const serverUrl = document.getElementById('serverUrl').value.trim() || 'ws://localhost:3000';
+        const serverUrl = document.getElementById('serverUrl').value.trim() || 'https://cerebro-code-sync.onrender.com';
         const roomCode = document.getElementById('roomCode').value.trim().toUpperCase() || 'HAWKINS1';
         const callsign = document.getElementById('callsign').value.trim().toUpperCase() || 'AGENT';
 
