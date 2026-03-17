@@ -11,6 +11,15 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 3000;
+const path = require('path');
+
+// Tell Express to serve files from the current directory
+app.use(express.static(__dirname));
+
+// Send login.html as the default page
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
 
 // HTTP server — serves the HTML file
 const httpServer = http.createServer((req, res) => {
