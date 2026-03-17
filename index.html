@@ -1069,7 +1069,13 @@
 </head>
 
 <body>
-
+<div class="status-bar">
+  <div>Terminal v6.01 - Secure</div>
+  <button onclick="logout()" style="background:none; border:1px solid var(--accent); color:var(--accent); cursor:pointer; font-family:var(--font); padding:2px 8px; margin-left:10px;">
+    [ LOGOUT ]
+  </button>
+  <div id="sbClock">00:00:00</div>
+</div>
   <div id="wakeLockBadge">Screen Awake</div>
 
   <div id="mainAppWrap">
@@ -1426,33 +1432,52 @@
       // =============================================
       // ROLE
       // =============================================
-      function setRole(role) {
-        state.role = role;
-        const isBc = role === 'broadcaster';
-        document.getElementById('btnBroadcaster').classList.toggle('active', isBc);
-        document.getElementById('btnListener').classList.toggle('active', !isBc);
-        ['btnPlay', 'btnRewind', 'btnFwd', 'btnStop'].forEach(id => {
-          document.getElementById(id).disabled = !isBc;
-        });
-        document.getElementById('seekTrack').style.pointerEvents = isBc ? 'auto' : 'none';
-        document.getElementById('seekTrack').style.opacity = isBc ? '1' : '0.5';
-        document.getElementById('statRole').textContent = role.toUpperCase();
-        document.getElementById('statRole').style.color = isBc ? 'var(--red)' : 'var(--green)';
-        // Mobile updates
-        const mobRole = document.getElementById('mobRole');
-        if (mobRole) { mobRole.textContent = role.toUpperCase(); mobRole.style.color = isBc ? 'var(--red)' : 'var(--green)'; }
-        ['mobBtnPlay', 'mobBtnRew', 'mobBtnFwd', 'mobBtnStop'].forEach(id => {
-          const el = document.getElementById(id); if (el) el.classList.toggle('dis', !isBc);
-        });
-        const ms = document.getElementById('mobSeekTrack');
-        if (ms) { ms.style.pointerEvents = isBc ? 'auto' : 'none'; ms.style.opacity = isBc ? '1' : '0.5'; }
-        addLog('connLog', `[ROLE] SET TO ${role.toUpperCase()}`, isBc ? 'warn' : 'info');
-      }
+function setRole(role) {
+  state.role = role;
+  const isBc = role === 'broadcaster';
+  const controls = ['btnPlay', 'btnRewind', 'btnFwd', 'btnStop', 'mobBtnPlay', 'mobBtnRew', 'mobBtnFwd'];
+  controls.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !isBc;
+  });
 
-      // =============================================
-      // WEBSOCKET CONNECTION
-      // =============================================
-      function connectToRoom() {
+  // 2. Lock the Seek Bars (prevent clicking to skip)
+  const seekBars = ['seekTrack', 'mobSeekTrack'];
+  seekBars.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.pointerEvents = isBc ? 'auto' : 'none';
+      el.style.opacity = isBc ? '1' : '0.5';
+    }
+  });
+  
+  // 3. Prevent Local File selection for Listeners
+  const fileInput = document.getElementById('fileInput');
+  if (fileInput) fileInput.disabled = !isBc;
+
+  document.getElementById('btnBroadcaster').classList.toggle('active', isBc);
+  document.getElementById('btnListener').classList.toggle('active', !isBc);
+  ['btnPlay', 'btnRewind', 'btnFwd', 'btnStop'].forEach(id => {
+    document.getElementById(id).disabled = !isBc;
+  });
+  document.getElementById('seekTrack').style.pointerEvents = isBc ? 'auto' : 'none';
+  document.getElementById('seekTrack').style.opacity = isBc ? '1' : '0.5';
+  document.getElementById('statRole').textContent = role.toUpperCase();
+  document.getElementById('statRole').style.color = isBc ? 'var(--red)' : 'var(--green)';
+  // Mobile updates
+  const mobRole = document.getElementById('mobRole');
+  if (mobRole) { mobRole.textContent = role.toUpperCase(); mobRole.style.color = isBc ? 'var(--red)' : 'var(--green)'; }
+  ['mobBtnPlay', 'mobBtnRew', 'mobBtnFwd', 'mobBtnStop'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.classList.toggle('dis', !isBc);
+  });
+  const ms = document.getElementById('mobSeekTrack');
+  if (ms) { ms.style.pointerEvents = isBc ? 'auto' : 'none'; ms.style.opacity = isBc ? '1' : '0.5'; }
+  addLog('connLog', `[ROLE] SET TO ${role.toUpperCase()}`, isBc ? 'warn' : 'info');
+}
+  // =============================================
+  // WEBSOCKET CONNECTION
+  // =============================================
+  function connectToRoom() {
         const serverUrl = document.getElementById('serverUrl').value.trim() || 'https://cerebro-code-sync.onrender.com';
         const roomCode = document.getElementById('roomCode').value.trim().toUpperCase() || 'HAWKINS1';
         const callsign = document.getElementById('callsign').value.trim().toUpperCase() || 'AGENT';
@@ -1714,6 +1739,8 @@
       // VIDEO CONTROLS
       // =============================================
       function togglePlay() {
+        // STRICT CHECK: Only broadcasters can send a PLAY/PAUSE signal
+       if (state.role !== 'broadcaster') return;
         if (video.paused) {
           video.play().then(() => {
             wsSend({ type: 'PLAY', time: video.currentTime });
@@ -2393,6 +2420,16 @@
         volSl.addEventListener('input', (e) => setVolume(e.target.value));
         volSl.addEventListener('change', (e) => setVolume(e.target.value));
       }
+      
+  // ... your existing sync code ...
+
+  function logout() {
+    sessionStorage.clear();
+    window.location.replace('login.html');
+  }
+
+  // ... rest of your code ...
+
 
     }); // end DOMContentLoaded
   </script>

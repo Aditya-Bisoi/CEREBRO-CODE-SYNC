@@ -217,28 +217,23 @@ wss.on('connection', (ws, req) => {
         break;
       }
 
-      // Broadcaster sends playback command — relay to all listeners
-      case 'PLAY':
-      case 'PAUSE':
-      case 'SEEK':
-      case 'STOP':
-      // YouTube commands
-      case 'YT_PLAY':
-      case 'YT_PAUSE':
-      case 'YT_SEEK':
-      case 'YT_STOP':
-      case 'YT_LOAD':
-      case 'SOURCE_SWITCH': {
-        if (!clientInfo) break;
-        console.log(`[${msg.type}] from ${clientInfo.callsign} | t=${msg.time?.toFixed(2)}s | room "${clientInfo.roomCode}"`);
-        broadcastToRoom(clientInfo.roomCode, {
-          ...msg,
-          callsign: clientInfo.callsign,
-          serverTime: Date.now()
-        }, ws);
-        break;
-      }
-
+     case 'PLAY':
+case 'PAUSE':
+case 'SEEK':
+case 'YT_PLAY':
+case 'YT_PAUSE': {
+  if (!clientInfo || clientInfo.role !== 'broadcaster') {
+    console.log(`[REJECTED] ${clientInfo?.callsign} tried to control playback as a listener.`);
+    break; // Exit without broadcasting to the room
+  }
+  
+  broadcastToRoom(clientInfo.roomCode, {
+    ...msg,
+    callsign: clientInfo.callsign,
+    serverTime: Date.now()
+  }, ws);
+  break;
+}
       // Ping for latency measurement
       case 'PING': {
         sendToClient(ws, {
