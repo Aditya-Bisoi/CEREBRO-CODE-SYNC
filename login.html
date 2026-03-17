@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>CEREBRO'S CODE RED</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050000;
+      --panel-bg: rgba(30, 0, 0, 0.7);
+      --border: rgba(220, 38, 38, 0.25);
+      --border-focus: rgba(220, 38, 38, 0.6);
+      --text: #f8fafc;
+      --text-muted: #a1a1aa;
+      --accent: #dc2626;
+      --accent-hover: #ef4444;
+      --error: #f59e0b;
+      --font: 'Share Tech Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Subtle grid background instead of scanlines */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      padding: 0 20px;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      padding: 32px;
+      position: relative;
+      box-shadow: 10px 10px 0px rgba(220, 38, 38, 0.05);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .header {
+      margin-bottom: 24px;
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 16px;
+    }
+
+    .title {
+      font-size: 24px;
+      color: var(--text);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .title span {
+      color: var(--accent);
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .label {
+      display: block;
+      font-size: 11px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .input-field {
+      width: 100%;
+      background: #000;
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-family: var(--font);
+      font-size: 16px;
+      padding: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 8px rgba(0, 255, 65, 0.2);
+    }
+
+    .input-field::placeholder {
+      color: #333;
+    }
+
+    .field-error {
+      color: var(--error);
+      font-size: 11px;
+      margin-top: 6px;
+      text-transform: uppercase;
+      display: none;
+    }
+
+    .field-error.show {
+      display: block;
+    }
+
+    .divider {
+      border: none;
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+
+    /* Access Code Block */
+    .code-block {
+      display: none;
+      margin-bottom: 16px;
+    }
+
+    .code-block.visible {
+      display: block;
+    }
+
+    .code-display {
+      background: #000;
+      border: 1px solid var(--accent);
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .code-value {
+      display: block;
+      font-size: 24px;
+      color: var(--accent);
+      letter-spacing: 4px;
+      margin-bottom: 4px;
+    }
+
+    .code-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .btn {
+      width: 100%;
+      font-family: var(--font);
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+      background: transparent;
+      color: var(--text);
+    }
+
+    .btn-secondary {
+      margin-bottom: 8px;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-primary {
+      border-color: var(--accent);
+      color: var(--accent);
+      margin-top: 8px;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 20px;
+      background: var(--accent);
+      color: #000;
+      font-size: 12px;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      border: 1px solid #000;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.2s;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Success Panel */
+    .success-panel {
+      display: none;
+    }
+
+    .success-panel.visible {
+      display: block;
+    }
+
+    .info-terminal {
+      background: #000;
+      border: 1px solid var(--border);
+      padding: 16px;
+      margin: 20px 0;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dashed #333;
+      padding: 4px 0;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .info-val {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: var(--accent);
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+      margin-left: 4px;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+    }
+
+    .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 8px 20px;
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      z-index: 10;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="toast" id="toast">Copied to clipboard!</div>
+
+  <div class="container">
+    <div class="card" id="loginCard">
+
+      <div class="header">
+        <div class="title">CEREBRO'S CODE RED</div>
+        <div class="subtitle">Secure Video Synchronization Protocol <span class="cursor"></span></div>
+      </div>
+
+      <div id="loginForm">
+        <div class="form-group">
+          <label class="label">> Username</label>
+          <input class="input-field" type="text" id="inputUsername" maxlength="20" placeholder="Enter identification"
+            autocomplete="off" oninput="clearError('errUsername')">
+          <div class="field-error" id="errUsername">ERROR: IDENTIFICATION REQUIRED</div>
+        </div>
+
+        <div class="form-group">
+          <label class="label">> Email Address</label>
+          <input class="input-field" type="email" id="inputEmail" placeholder="user@domain.com" autocomplete="off"
+            oninput="clearError('errEmail')">
+          <div class="field-error" id="errEmail">ERROR: INVALID EMAIL FORMAT</div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="form-group">
+          <label class="label">> Access Token</label>
+
+          <div class="code-block" id="codeBlock">
+            <div class="code-display">
+              <span class="code-value" id="codeValue">----------</span>
+              <div class="code-hint">Keep this token secure</div>
+            </div>
+            <button class="btn btn-secondary" onclick="copyCode()">
+              [ Copy to Clipboard ]
+            </button>
+          </div>
+
+          <button class="btn btn-secondary" onclick="generateCode()" id="btnGenerate">
+            [ Generate Token ]
+          </button>
+          <div class="field-error" id="errCode">ERROR: TOKEN GENERATION REQUIRED</div>
+        </div>
+
+        <button class="btn btn-primary" id="btnAccess" onclick="submitAccess()">
+          Initialize Session
+        </button>
+      </div>
+
+      <!-- Success View -->
+      <div class="success-panel" id="successPanel">
+        <div class="title" style="font-size: 16px; margin-bottom: 8px; color: var(--accent);">STATUS: CONNECTION READY
+        </div>
+        <div class="subtitle">Session parameters validated</div>
+
+        <div class="info-terminal" id="successInfo">
+          <div class="info-row">
+            <span class="info-label">USER_ID</span>
+            <span class="info-val" id="sCallsign">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">CONTACT</span>
+            <span class="info-val" id="sEmail">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">TOKEN</span>
+            <span class="info-val" id="sCode">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">SESSION_HASH</span>
+            <span class="info-val" id="sSession" style="color: var(--text);">-</span>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="proceed()">
+          Execute
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div>Terminal v6.01 - Secure</div>
+    <div id="sbClock">00:00:00</div>
+  </div>
+
+  <script>
+    /* ── Clock ── */
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('sbClock').textContent =
+        now.toTimeString().slice(0, 8);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    /* ── State ── */
+    let generatedCode = '';
+
+    /* ── Generate 10-character alphabetic code ── */
+    function generateCode() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let code = '';
+      for (let i = 0; i < 10; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      generatedCode = code;
+
+      const block = document.getElementById('codeBlock');
+      block.classList.add('visible');
+
+      const valueEl = document.getElementById('codeValue');
+      valueEl.textContent = code;
+
+      const btn = document.getElementById('btnGenerate');
+      btn.textContent = '[ Regenerate Token ]';
+
+      clearError('errCode');
+    }
+
+    /* ── Copy code ── */
+    function copyCode() {
+      if (!generatedCode) return;
+      navigator.clipboard.writeText(generatedCode).then(() => {
+        showToast();
+      }).catch(() => {
+        // Fallback
+        const el = document.createElement('textarea');
+        el.value = generatedCode;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        showToast();
+      });
+    }
+
+    function showToast() {
+      const t = document.getElementById('toast');
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    /* ── Validation ── */
+    function clearError(id) {
+      document.getElementById(id).classList.remove('show');
+    }
+
+    function validate() {
+      let ok = true;
+      const username = document.getElementById('inputUsername').value.trim();
+      const email = document.getElementById('inputEmail').value.trim();
+      const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!username) {
+        document.getElementById('errUsername').classList.add('show'); ok = false;
+      }
+      if (!email || !emailRx.test(email)) {
+        document.getElementById('errEmail').classList.add('show'); ok = false;
+      }
+      if (!generatedCode) {
+        document.getElementById('errCode').classList.add('show'); ok = false;
+      }
+      return ok;
+    }
+
+    /* ── Submit ── */
+    function submitAccess() {
+      if (!validate()) return;
+
+      const btn = document.getElementById('btnAccess');
+      btn.disabled = true;
+      btn.innerHTML = 'Authenticating <span class="cursor"></span>';
+
+      setTimeout(() => {
+        const username = document.getElementById('inputUsername').value.trim().toUpperCase();
+        const email = document.getElementById('inputEmail').value.trim();
+        const session = Date.now().toString(16).toUpperCase();
+
+        document.getElementById('sCallsign').textContent = username;
+        document.getElementById('sEmail').textContent = email;
+        document.getElementById('sCode').textContent = generatedCode;
+        document.getElementById('sSession').textContent = '0x' + session;
+
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('successPanel').classList.add('visible');
+      }, 800);
+    }
+
+    /* ── Proceed (redirect to main app or reload) ── */
+    function proceed() {
+      try {
+        sessionStorage.setItem('cerebro_callsign', document.getElementById('inputUsername').value.trim());
+        sessionStorage.setItem('cerebro_code', generatedCode);
+      } catch (e) { }
+      window.location.href = 'index.html';
+    }
+
+    /* ── Allow Enter key to submit ── */
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitAccess();
+    });
+  </script>
+</body>
+
+</html>
