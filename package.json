@@ -1,5 +1,14 @@
 {
+  "name": "cerebro-sync-server",
+  "version": "1.0.0",
+  "description": "CEREBRO // CODE RED — WebSocket Sync Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "tunnel": "node server.js"
+  },
   "dependencies": {
-    "ws": "^8.19.0"
+    "ws": "^8.14.2",
+    "@ngrok/ngrok": "^1.2.0"
   }
 }

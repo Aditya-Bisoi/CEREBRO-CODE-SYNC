@@ -190,3 +190,4 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`║   CEREBRO SYNC SERVER LIVE ON PORT ${PORT}  ║`);
   console.log(`╚══════════════════════════════════════════╝\n`);
 });
+const NGROK_TOKEN = 'your_token_here';
