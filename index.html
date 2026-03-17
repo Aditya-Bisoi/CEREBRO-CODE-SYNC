@@ -10,16 +10,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <script>
-  // SECURITY PROTOCOL: Redirect unauthorized access
-  (function() {
-    const activeUser = sessionStorage.getItem('cerebro_callsign');
-    const activeToken = sessionStorage.getItem('cerebro_code');
+  // Check if the required session data exists
+  const savedName = sessionStorage.getItem('cerebro_callsign');
+  const savedCode = sessionStorage.getItem('cerebro_code');
 
-    if (!activeUser || !activeToken) {
-      // No session found - kick back to login portal
-      window.location.replace('login.html');
-    }
-  })();
+  if (!savedName || !savedCode) {
+    // If data is missing, redirect to the login page
+    window.location.href = 'login.html';
+  }
 </script>
   <style>
     :root {
@@ -1431,27 +1429,6 @@
       function setRole(role) {
         state.role = role;
         const isBc = role === 'broadcaster';
-        // 1. Disable/Enable all control buttons
-  const controls = ['btnPlay', 'btnRewind', 'btnFwd', 'btnStop', 'mobBtnPlay', 'mobBtnRew', 'mobBtnFwd'];
-  controls.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = !isBc;
-  });
-
-  // 2. Lock the Seek Bars (prevent clicking to skip)
-  const seekBars = ['seekTrack', 'mobSeekTrack'];
-  seekBars.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.style.pointerEvents = isBc ? 'auto' : 'none';
-      el.style.opacity = isBc ? '1' : '0.5';
-    }
-  });
-  
-  // 3. Prevent Local File selection for Listeners
-  const fileInput = document.getElementById('fileInput');
-  if (fileInput) fileInput.disabled = !isBc;
-
         document.getElementById('btnBroadcaster').classList.toggle('active', isBc);
         document.getElementById('btnListener').classList.toggle('active', !isBc);
         ['btnPlay', 'btnRewind', 'btnFwd', 'btnStop'].forEach(id => {
@@ -1737,8 +1714,6 @@
       // VIDEO CONTROLS
       // =============================================
       function togglePlay() {
-        // STRICT CHECK: Only broadcasters can send a PLAY/PAUSE signal
-        if (state.role !== 'broadcaster') return;
         if (video.paused) {
           video.play().then(() => {
             wsSend({ type: 'PLAY', time: video.currentTime });
