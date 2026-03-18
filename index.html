@@ -1474,10 +1474,32 @@ function setRole(role) {
   if (ms) { ms.style.pointerEvents = isBc ? 'auto' : 'none'; ms.style.opacity = isBc ? '1' : '0.5'; }
   addLog('connLog', `[ROLE] SET TO ${role.toUpperCase()}`, isBc ? 'warn' : 'info');
 }
+let rawUrl = document.getElementById('serverUrl').value.trim();
+
+// Automatically convert http/https to ws/wss
+let finalUrl = rawUrl.replace(/^http/, 'ws').replace(/^https/, 'wss');
+
+// Example: "https://my-app.onrender.com" becomes "wss://my-app.onrender.com"
+const socket = new WebSocket(finalUrl);
   // =============================================
   // WEBSOCKET CONNECTION
   // =============================================
   function connectToRoom() {
+    let url = document.getElementById('serverUrl').value.trim();
+
+    // Force secure protocol for cloud deployment
+    if (url.startsWith('https://')) {
+        url = url.replace('https://', 'wss://');
+    } else if (url.startsWith('http://')) {
+        url = url.replace('http://', 'ws://');
+    }
+
+    // Update the field so the user sees the correction
+    document.getElementById('serverUrl').value = url;
+
+    // Now proceed with the socket connection...
+    const socket = new WebSocket(url);
+    // ... rest of your code
         const serverUrl = document.getElementById('serverUrl').value.trim() || 'wss://cerebro-code-sync.onrender.com';
         const roomCode = document.getElementById('roomCode').value.trim().toUpperCase() || 'HAWKINS1';
         const callsign = document.getElementById('callsign').value.trim().toUpperCase() || 'AGENT';
