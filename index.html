@@ -1485,17 +1485,24 @@ const socket = new WebSocket(finalUrl);
   // WEBSOCKET CONNECTION
   // =============================================
   function connectToRoom() {
-    let url = document.getElementById('serverUrl').value.trim();
+   function connectToRoom() {
+  // CHANGE THIS:
+  let url = document.getElementById('serverUrl').value.trim();
 
-    // Force secure protocol for cloud deployment
-    if (url.startsWith('https://')) {
-        url = url.replace('https://', 'wss://');
-    } else if (url.startsWith('http://')) {
-        url = url.replace('http://', 'ws://');
-    }
+  // ADD THIS BLOCK TO FIX THE 'HTTPS' ERROR:
+  if (url.startsWith('https://')) {
+    url = url.replace('https://', 'wss://');
+  } else if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+    url = 'wss://' + url;
+  }
+  document.getElementById('serverUrl').value = url;
 
+  // THE REST OF YOUR CODE STAYS THE SAME:
+  const roomCode = document.getElementById('roomCode').value.trim();
+  // ... (keep everything else exactly as it is)
+}
     // Update the field so the user sees the correction
-    document.getElementById('serverUrl').value = url;
+   // document.getElementById('serverUrl').value = url;
 
     // Now proceed with the socket connection...
     const socket = new WebSocket(url);
