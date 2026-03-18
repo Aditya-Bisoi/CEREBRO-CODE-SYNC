@@ -9,16 +9,6 @@
   <title>CEREBRO'S RED CODE</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <script>
-  // Check if the required session data exists
-  const savedName = sessionStorage.getItem('cerebro_callsign');
-  const savedCode = sessionStorage.getItem('cerebro_code');
-
-  if (!savedName || !savedCode) {
-    // If data is missing, redirect to the login page
-    window.location.href = 'login.html';
-  }
-</script>
   <style>
     :root {
       --bg: #050000;
@@ -1069,13 +1059,60 @@
 </head>
 
 <body>
-<div class="status-bar">
-  <div>Terminal v6.01 - Secure</div>
-  <button onclick="logout()" style="background:none; border:1px solid var(--accent); color:var(--accent); cursor:pointer; font-family:var(--font); padding:2px 8px; margin-left:10px;">
-    [ LOGOUT ]
-  </button>
-  <div id="sbClock">00:00:00</div>
-</div>
+<script>
+  // ── WebSocket URL — ALWAYS points to Render deployment ──
+  // Hardcoded so Live Server / localhost never bleeds through
+  const CEREBRO_WS_URL = 'wss://cerebro-code-sync.onrender.com';
+
+  // ── Read URL params passed from login.html ──
+  (function() {
+    const params = new URLSearchParams(location.search);
+    const callsign = params.get('callsign');
+    const roomCode = params.get('roomCode');
+    const role     = params.get('role');
+    const password = params.get('password');
+    // Always use the hardcoded Render WSS URL
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Populate fields from login params
+      if (callsign) { const el = document.getElementById('callsign'); if (el) el.value = callsign; }
+      if (roomCode) { const el = document.getElementById('roomCode'); if (el) el.value = roomCode; }
+      if (password) { const el = document.getElementById('roomPassword'); if (el) el.value = password; }
+
+      // Always set server URL to WebSocket origin (never hardcoded localhost)
+      const urlEl = document.getElementById('serverUrl');
+      if (urlEl) urlEl.value = CEREBRO_WS_URL;
+
+      // Set role buttons
+      if (role === 'listener') {
+        const setRoleFn = window.setRole || (typeof setRole !== 'undefined' ? setRole : null);
+        // Use timeout to ensure DOMContentLoaded JS has run
+        setTimeout(() => { if (typeof setRole === 'function') setRole('listener'); }, 50);
+      } else {
+        setTimeout(() => { if (typeof setRole === 'function') setRole('broadcaster'); }, 50);
+      }
+
+      // Auto-connect if we came from login
+      if (callsign && roomCode) {
+        setTimeout(() => { if (typeof connectToRoom === 'function') connectToRoom(); }, 150);
+      }
+
+      // Add logout button to status bar
+      const sb = document.querySelector('.status-bar');
+      if (sb) {
+        const logoutBtn = document.createElement('button');
+        logoutBtn.textContent = '⎋ LOGOUT';
+        logoutBtn.style.cssText = 'font-family:var(--font-mono),monospace;font-size:9px;letter-spacing:2px;padding:3px 8px;border:1px solid #333;background:transparent;color:#444;cursor:pointer;margin-left:8px;';
+        logoutBtn.onmouseover = () => { logoutBtn.style.color='var(--red)'; logoutBtn.style.borderColor='var(--red)'; };
+        logoutBtn.onmouseout  = () => { logoutBtn.style.color='#444';       logoutBtn.style.borderColor='#333'; };
+        logoutBtn.onclick = () => { window.location.replace('login.html'); };
+        sb.appendChild(logoutBtn);
+      }
+    });
+  })();
+</script>
+
+
   <div id="wakeLockBadge">Screen Awake</div>
 
   <div id="mainAppWrap">
@@ -1106,7 +1143,7 @@
         <div style="display:flex;flex-direction:column;gap:12px">
           <div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Server URL</div>
-            <input class="retro-input" id="serverUrl" value="wss://cerebro-code-sync.onrender.com">
+            <input class="retro-input" id="serverUrl" value="wss://cerebro-code-sync.onrender.com" placeholder="wss://cerebro-code-sync.onrender.com">
           </div>
           <div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Room Code</div>
@@ -1116,6 +1153,23 @@
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Username</div>
             <input class="retro-input" id="callsign" value="User">
           </div>
+          <!-- SECURITY FIELDS -->
+          <div>
+            <div style="font-size:12px;color:var(--red);margin-bottom:6px">&#128274; Room Password</div>
+            <input class="retro-input" id="roomPassword" maxlength="20" placeholder="Leave blank = open room"
+              style="letter-spacing:2px;font-size:14px;border-color:var(--red-dim);color:var(--red);" type="password">
+            <div style="font-size:9px;color:#444;letter-spacing:1px;margin-top:4px">Broadcaster sets it — listeners must match</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--amber);margin-bottom:6px">Max Listeners</div>
+            <input class="retro-input" id="maxListeners" maxlength="3" placeholder="10" value="10"
+              style="font-size:16px;" type="number" min="1" max="100">
+            <div style="font-size:9px;color:#444;letter-spacing:1px;margin-top:4px">Broadcaster only — max devices allowed</div>
+          </div>
+          <div style="background:rgba(255,0,0,0.05);border:1px solid var(--red-dim);padding:6px 10px;font-size:9px;color:#555;letter-spacing:1px;">
+            &#9888; Listeners: enter password below before connecting
+          </div>
+
           <button class="retro-btn" id="connectBtn" onclick="connectToRoom()">Connect to Room</button>
         </div>
 
@@ -1432,81 +1486,36 @@
       // =============================================
       // ROLE
       // =============================================
-function setRole(role) {
-  state.role = role;
-  const isBc = role === 'broadcaster';
-  const controls = ['btnPlay', 'btnRewind', 'btnFwd', 'btnStop', 'mobBtnPlay', 'mobBtnRew', 'mobBtnFwd'];
-  controls.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = !isBc;
-  });
+      function setRole(role) {
+        state.role = role;
+        const isBc = role === 'broadcaster';
+        document.getElementById('btnBroadcaster').classList.toggle('active', isBc);
+        document.getElementById('btnListener').classList.toggle('active', !isBc);
+        ['btnPlay', 'btnRewind', 'btnFwd', 'btnStop'].forEach(id => {
+          document.getElementById(id).disabled = !isBc;
+        });
+        document.getElementById('seekTrack').style.pointerEvents = isBc ? 'auto' : 'none';
+        document.getElementById('seekTrack').style.opacity = isBc ? '1' : '0.5';
+        document.getElementById('statRole').textContent = role.toUpperCase();
+        document.getElementById('statRole').style.color = isBc ? 'var(--red)' : 'var(--green)';
+        // Mobile updates
+        const mobRole = document.getElementById('mobRole');
+        if (mobRole) { mobRole.textContent = role.toUpperCase(); mobRole.style.color = isBc ? 'var(--red)' : 'var(--green)'; }
+        ['mobBtnPlay', 'mobBtnRew', 'mobBtnFwd', 'mobBtnStop'].forEach(id => {
+          const el = document.getElementById(id); if (el) el.classList.toggle('dis', !isBc);
+        });
+        const ms = document.getElementById('mobSeekTrack');
+        if (ms) { ms.style.pointerEvents = isBc ? 'auto' : 'none'; ms.style.opacity = isBc ? '1' : '0.5'; }
+        // Show lock banner on mobile for listeners
+        const banner = document.getElementById('mobListenerBanner');
+        if (banner) banner.style.display = isBc ? 'none' : 'block';
+        addLog('connLog', `[ROLE] SET TO ${role.toUpperCase()}`, isBc ? 'warn' : 'info');
+      }
 
-  // 2. Lock the Seek Bars (prevent clicking to skip)
-  const seekBars = ['seekTrack', 'mobSeekTrack'];
-  seekBars.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.style.pointerEvents = isBc ? 'auto' : 'none';
-      el.style.opacity = isBc ? '1' : '0.5';
-    }
-  });
-  
-  // 3. Prevent Local File selection for Listeners
-  const fileInput = document.getElementById('fileInput');
-  if (fileInput) fileInput.disabled = !isBc;
-
-  document.getElementById('btnBroadcaster').classList.toggle('active', isBc);
-  document.getElementById('btnListener').classList.toggle('active', !isBc);
-  ['btnPlay', 'btnRewind', 'btnFwd', 'btnStop'].forEach(id => {
-    document.getElementById(id).disabled = !isBc;
-  });
-  document.getElementById('seekTrack').style.pointerEvents = isBc ? 'auto' : 'none';
-  document.getElementById('seekTrack').style.opacity = isBc ? '1' : '0.5';
-  document.getElementById('statRole').textContent = role.toUpperCase();
-  document.getElementById('statRole').style.color = isBc ? 'var(--red)' : 'var(--green)';
-  // Mobile updates
-  const mobRole = document.getElementById('mobRole');
-  if (mobRole) { mobRole.textContent = role.toUpperCase(); mobRole.style.color = isBc ? 'var(--red)' : 'var(--green)'; }
-  ['mobBtnPlay', 'mobBtnRew', 'mobBtnFwd', 'mobBtnStop'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.classList.toggle('dis', !isBc);
-  });
-  const ms = document.getElementById('mobSeekTrack');
-  if (ms) { ms.style.pointerEvents = isBc ? 'auto' : 'none'; ms.style.opacity = isBc ? '1' : '0.5'; }
-  addLog('connLog', `[ROLE] SET TO ${role.toUpperCase()}`, isBc ? 'warn' : 'info');
-}
-let rawUrl = document.getElementById('serverUrl').value.trim();
-
-// Automatically convert http/https to ws/wss
-let finalUrl = rawUrl.replace(/^http/, 'ws').replace(/^https/, 'wss');
-
-// Example: "https://my-app.onrender.com" becomes "wss://my-app.onrender.com"
-const socket = new WebSocket(finalUrl);
-  // =============================================
-  // WEBSOCKET CONNECTION
-  // =============================================
-  function connectToRoom() {
-   function connectToRoom() {
-  // CHANGE THIS:
-  let url = document.getElementById('serverUrl').value.trim();
-
-  // ADD THIS BLOCK TO FIX THE 'HTTPS' ERROR:
-  if (url.startsWith('https://')) {
-    url = url.replace('https://', 'wss://');
-  } else if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
-    url = 'wss://' + url;
-  }
-  document.getElementById('serverUrl').value = url;
-
-  // THE REST OF YOUR CODE STAYS THE SAME:
-  const roomCode = document.getElementById('roomCode').value.trim();
-  // ... (keep everything else exactly as it is)
-}
-    // Update the field so the user sees the correction
-   // document.getElementById('serverUrl').value = url;
-
-    // Now proceed with the socket connection...
-    const socket = new WebSocket(url);
-    // ... rest of your code
+      // =============================================
+      // WEBSOCKET CONNECTION
+      // =============================================
+      function connectToRoom() {
         const serverUrl = document.getElementById('serverUrl').value.trim() || 'wss://cerebro-code-sync.onrender.com';
         const roomCode = document.getElementById('roomCode').value.trim().toUpperCase() || 'HAWKINS1';
         const callsign = document.getElementById('callsign').value.trim().toUpperCase() || 'AGENT';
@@ -1531,7 +1540,9 @@ const socket = new WebSocket(finalUrl);
           document.getElementById('dbgWsState').textContent = 'OPEN';
 
           // Join room
-          wsSend({ type: 'JOIN', roomCode, callsign, role: state.role });
+          const roomPassword  = document.getElementById('roomPassword')?.value.trim() || '';
+    const maxListeners  = parseInt(document.getElementById('maxListeners')?.value) || 10;
+    wsSend({ type: 'JOIN', roomCode, callsign, role: state.role, password: roomPassword, maxListeners });
 
           // Start ping
           startPing();
@@ -1599,6 +1610,7 @@ const socket = new WebSocket(finalUrl);
           case 'JOINED':
             addLog('connLog', `[WS] JOINED ROOM "${msg.roomCode}"`, 'info');
             addLog('connLog', `[WS] ${msg.peers.length} PEER(S) ALREADY IN ROOM`, 'info');
+            if (msg.maxListeners) addLog('connLog', `[SEC] SLOTS: ${msg.listenerCount}/${msg.maxListeners}`, 'warn');
             peers = msg.peers;
             renderPeers();
             break;
@@ -1620,7 +1632,10 @@ const socket = new WebSocket(finalUrl);
             if (state.role === 'listener') {
               const diff = Math.abs(video.currentTime - msg.time);
               document.getElementById('dbgTcDiff').textContent = `${(diff * 1000).toFixed(0)}ms`;
-              if (diff > 0.3) {
+              // ── AI: dynamic threshold + drift feed ──
+              const _aiThresh = (typeof AI !== 'undefined') ? AI.getSyncThreshold() : 0.3;
+              if (typeof AI !== 'undefined') AI.feedDrift(diff * 1000);
+              if (diff > _aiThresh) {
                 video.currentTime = msg.time;
                 document.getElementById('dbgCorr').textContent = `+${(diff * 1000).toFixed(0)}ms`;
                 showSyncing();
@@ -1688,12 +1703,31 @@ const socket = new WebSocket(finalUrl);
               try { ytPlayer.stopVideo(); addLog('syncLog', '[RX] YT STOP', 'warn'); } catch (e) { }
             } break;
 
-          case 'PONG':
+          case 'JOIN_REJECTED':
+      // Server rejected our join attempt
+      const reason = msg.reason === 'WRONG_PASSWORD'
+        ? '⛔ WRONG PASSWORD — ACCESS DENIED'
+        : `⛔ ROOM FULL — ${msg.message}`;
+      addLog('connLog', reason, 'error');
+      addLog('connLog', '[SECURITY] JOIN REJECTED BY SERVER', 'error');
+      // Show alert in UI
+      const alertEl = document.getElementById('alertStrip');
+      if (alertEl) { alertEl.textContent = reason; alertEl.classList.add('show'); }
+      // Reset connect button
+      const btn2 = document.getElementById('connectBtn');
+      if (btn2) { btn2.textContent = '⟶ ESTABLISH LINK'; btn2.style.color = ''; btn2.style.borderColor = ''; }
+      state.connected = false;
+      setWsStatus('disconnected');
+      break;
+
+        case 'PONG':
             const rtt = Date.now() - msg.clientTimestamp;
             currentLatency = Math.round(rtt / 2);
             document.getElementById('wsLatency').textContent = rtt + 'ms RTT';
             document.getElementById('dbgRtt').textContent = rtt + 'ms';
             updateLatencyMeter(currentLatency);
+            // ── AI Buffering Predictor: feed live latency ──
+            if (typeof AI !== 'undefined') AI.feedLatency(currentLatency);
             break;
         }
       }
@@ -1768,8 +1802,7 @@ const socket = new WebSocket(finalUrl);
       // VIDEO CONTROLS
       // =============================================
       function togglePlay() {
-        // STRICT CHECK: Only broadcasters can send a PLAY/PAUSE signal
-       if (state.role !== 'broadcaster') return;
+        if (state.role !== 'broadcaster') { addLog('syncLog','[BLOCKED] Listeners cannot control playback','error'); return; }
         if (video.paused) {
           video.play().then(() => {
             wsSend({ type: 'PLAY', time: video.currentTime });
@@ -1783,17 +1816,20 @@ const socket = new WebSocket(finalUrl);
       }
 
       function stopVideo() {
+        if (state.role !== 'broadcaster') { addLog('syncLog','[BLOCKED] Listeners cannot control playback','error'); return; }
         video.pause(); video.currentTime = 0;
         wsSend({ type: 'STOP', time: 0 });
         updatePlayBtn();
       }
 
       function rewindVideo() {
+        if (state.role !== 'broadcaster') { addLog('syncLog','[BLOCKED] Listeners cannot control playback','error'); return; }
         video.currentTime = Math.max(0, video.currentTime - 10);
         wsSend({ type: 'SEEK', time: video.currentTime });
       }
 
       function fwdVideo() {
+        if (state.role !== 'broadcaster') { addLog('syncLog','[BLOCKED] Listeners cannot control playback','error'); return; }
         video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
         wsSend({ type: 'SEEK', time: video.currentTime });
       }
@@ -1807,6 +1843,7 @@ const socket = new WebSocket(finalUrl);
       }
 
       function seekClick(e) {
+        if (state.role !== 'broadcaster') return;
         if (state.role !== 'broadcaster') return;
         const rect = document.getElementById('seekTrack').getBoundingClientRect();
         video.currentTime = ((e.clientX - rect.left) / rect.width) * (video.duration || 0);
@@ -2449,20 +2486,11 @@ const socket = new WebSocket(finalUrl);
         volSl.addEventListener('input', (e) => setVolume(e.target.value));
         volSl.addEventListener('change', (e) => setVolume(e.target.value));
       }
-      
-  // ... your existing sync code ...
-
-  function logout() {
-    sessionStorage.clear();
-    window.location.replace('login.html');
-  }
-
-  // ... rest of your code ...
-
 
     }); // end DOMContentLoaded
   </script>
 
+<script src="ai-engine.js"></script>
 </body>
 
 </html>
