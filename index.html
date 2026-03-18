@@ -1060,55 +1060,80 @@
 
 <body>
 <script>
-  // ── WebSocket URL — ALWAYS points to Render deployment ──
-  // Hardcoded so Live Server / localhost never bleeds through
+  // ============================================================
+  // CEREBRO — LOGIN ↔ INDEX CONNECTION BRIDGE
+  // ============================================================
+  // Flow:
+  //   login.html  →  validates user  →  redirects to index.html?callsign=X&roomCode=Y&role=Z
+  //   index.html  →  reads params    →  saves to sessionStorage  →  auto-connects WebSocket
+  //   On refresh  →  reads sessionStorage  →  auto-connects again (no re-login needed)
+  //   LOGOUT btn  →  clears sessionStorage  →  back to login.html
+  //   Direct open →  no params + no session  →  redirect to login.html
+  // ============================================================
+
   const CEREBRO_WS_URL = 'wss://cerebro-code-sync.onrender.com';
 
-  // ── Read URL params passed from login.html ──
   (function() {
-    const params = new URLSearchParams(location.search);
-    const callsign = params.get('callsign');
-    const roomCode = params.get('roomCode');
-    const role     = params.get('role');
-    const password = params.get('password');
-    // Always use the hardcoded Render WSS URL
+    const params   = new URLSearchParams(location.search);
 
-    document.addEventListener('DOMContentLoaded', () => {
-      // Populate fields from login params
-      if (callsign) { const el = document.getElementById('callsign'); if (el) el.value = callsign; }
-      if (roomCode) { const el = document.getElementById('roomCode'); if (el) el.value = roomCode; }
-      if (password) { const el = document.getElementById('roomPassword'); if (el) el.value = password; }
+    // ── Read from URL params (fresh login) ──
+    let callsign = params.get('callsign');
+    let roomCode = params.get('roomCode');
+    let role     = params.get('role');
+    let password = params.get('password');
 
-      // Always set server URL to WebSocket origin (never hardcoded localhost)
-      const urlEl = document.getElementById('serverUrl');
-      if (urlEl) urlEl.value = CEREBRO_WS_URL;
+    // ── If no URL params, try sessionStorage (page refresh) ──
+    if (!callsign || !roomCode) {
+      callsign = sessionStorage.getItem('cerebro_callsign');
+      roomCode = sessionStorage.getItem('cerebro_roomCode');
+      role     = sessionStorage.getItem('cerebro_role')     || 'broadcaster';
+      password = sessionStorage.getItem('cerebro_password') || '';
+    }
 
-      // Set role buttons
-      if (role === 'listener') {
-        const setRoleFn = window.setRole || (typeof setRole !== 'undefined' ? setRole : null);
-        // Use timeout to ensure DOMContentLoaded JS has run
-        setTimeout(() => { if (typeof setRole === 'function') setRole('listener'); }, 50);
-      } else {
-        setTimeout(() => { if (typeof setRole === 'function') setRole('broadcaster'); }, 50);
-      }
+    // ── Guard: if still no callsign/roomCode → send to login ──
+    if (!callsign || !roomCode) {
+      window.location.replace('login.html');
+      // Stop everything — page is being redirected
+    } else {
+      // ── Save to sessionStorage so refresh works without re-login ──
+      sessionStorage.setItem('cerebro_callsign', callsign);
+      sessionStorage.setItem('cerebro_roomCode', roomCode);
+      sessionStorage.setItem('cerebro_role',     role || 'broadcaster');
+      if (password) sessionStorage.setItem('cerebro_password', password);
 
-      // Auto-connect if we came from login
-      if (callsign && roomCode) {
-        setTimeout(() => { if (typeof connectToRoom === 'function') connectToRoom(); }, 150);
-      }
+      document.addEventListener('DOMContentLoaded', () => {
+        // ── Populate all fields silently ──
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+        setVal('callsign',     callsign);
+        setVal('roomCode',     roomCode);
+        setVal('roomPassword', password);
+        setVal('serverUrl',    CEREBRO_WS_URL);
 
-      // Add logout button to status bar
-      const sb = document.querySelector('.status-bar');
-      if (sb) {
-        const logoutBtn = document.createElement('button');
-        logoutBtn.textContent = '⎋ LOGOUT';
-        logoutBtn.style.cssText = 'font-family:var(--font-mono),monospace;font-size:9px;letter-spacing:2px;padding:3px 8px;border:1px solid #333;background:transparent;color:#444;cursor:pointer;margin-left:8px;';
-        logoutBtn.onmouseover = () => { logoutBtn.style.color='var(--red)'; logoutBtn.style.borderColor='var(--red)'; };
-        logoutBtn.onmouseout  = () => { logoutBtn.style.color='#444';       logoutBtn.style.borderColor='#333'; };
-        logoutBtn.onclick = () => { window.location.replace('login.html'); };
-        sb.appendChild(logoutBtn);
-      }
-    });
+        // ── Set role ──
+        const applyRole = () => {
+          if (typeof setRole === 'function') setRole(role === 'listener' ? 'listener' : 'broadcaster');
+        };
+        setTimeout(applyRole, 50);
+
+        // ── Auto-connect WebSocket ──
+        setTimeout(() => { if (typeof connectToRoom === 'function') connectToRoom(); }, 200);
+
+        // ── Logout button → clears session and returns to login ──
+        const sb = document.querySelector('.status-bar');
+        if (sb) {
+          const logoutBtn = document.createElement('button');
+          logoutBtn.textContent = '⎋ LOGOUT';
+          logoutBtn.style.cssText = 'font-family:var(--font-mono),monospace;font-size:9px;letter-spacing:2px;padding:3px 8px;border:1px solid #333;background:transparent;color:#444;cursor:pointer;margin-left:8px;';
+          logoutBtn.onmouseover = () => { logoutBtn.style.color = 'var(--red)'; logoutBtn.style.borderColor = 'var(--red)'; };
+          logoutBtn.onmouseout  = () => { logoutBtn.style.color = '#444';       logoutBtn.style.borderColor = '#333'; };
+          logoutBtn.onclick = () => {
+            sessionStorage.clear();
+            window.location.replace('login.html');
+          };
+          sb.appendChild(logoutBtn);
+        }
+      });
+    }
   })();
 </script>
 
