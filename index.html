@@ -1106,7 +1106,7 @@
         <div style="display:flex;flex-direction:column;gap:12px">
           <div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Server URL</div>
-            <input class="retro-input" id="serverUrl" value="https://cerebro-code-sync.onrender.com">
+            <input class="retro-input" id="serverUrl" value="wss://cerebro-code-sync.onrender.com">
           </div>
           <div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Room Code</div>
@@ -1478,7 +1478,14 @@ function setRole(role) {
   // WEBSOCKET CONNECTION
   // =============================================
   function connectToRoom() {
-        const serverUrl = document.getElementById('serverUrl').value.trim() || 'https://cerebro-code-sync.onrender.com';
+        const serverUrl = document.getElementById('serverUrl').value.trim() || 'wscd "C:\Users\ASUS\OneDrive\IIIT\CEREBRO sync"
+git init
+echo node_modules/ > .gitignore
+git add .
+git commit -m "Initial commit — CEREBRO CODE RED Sync System"
+git remote add origin https://github.com/YOUR_USERNAME/cerebro-sync.git
+git branch -M main
+git push -u origin mains://cerebro-code-sync.onrender.com';
         const roomCode = document.getElementById('roomCode').value.trim().toUpperCase() || 'HAWKINS1';
         const callsign = document.getElementById('callsign').value.trim().toUpperCase() || 'AGENT';
 
